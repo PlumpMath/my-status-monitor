@@ -26,7 +26,7 @@ type Battery struct {
 
 func (s *State) String() string {
 	if s.Charging {
-		return fmt.Sprintf("Battery, charging, %d%%", s.PercentRemaining)
+		return fmt.Sprintf("Battery charging, %d%%", s.PercentRemaining)
 	} else {
 		return fmt.Sprintf("On battery, %d:%02d remaining (%d%%)",
 			s.Hours, s.Minutes, s.PercentRemaining)
