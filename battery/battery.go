@@ -1,9 +1,10 @@
 package battery
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ type State struct {
 }
 
 type Battery struct {
-	Path string
+	Path  string
 	State *State
 }
 
@@ -36,8 +37,8 @@ func (b *Battery) Poll() {
 	var err error
 
 	// Read in each of the files we care about, and store their contents in a map.
-	text := make(map[string] string)
-	for _, f := range []string{"status", "capacity", "power_now", "energy_now" } {
+	text := make(map[string]string)
+	for _, f := range []string{"status", "capacity", "power_now", "energy_now"} {
 		text[f], err = slurpFile(b.Path + f)
 		if err != nil {
 			// If we're unsuccessful reading any of the files, stop now.
@@ -49,7 +50,7 @@ func (b *Battery) Poll() {
 
 	// Most of the files contain numbers; convert them into actual
 	// integers so we can work with them.
-	nums := make(map[string] int)
+	nums := make(map[string]int)
 	for _, f := range []string{"capacity", "power_now", "energy_now"} {
 		// The call to TrimSpace is important; the files end with a
 		// newline, so without this Atoi will fail.
@@ -74,11 +75,11 @@ func (b *Battery) Poll() {
 	result := &State{}
 
 	// work out how much time we have left
-	result.Hours = energy/power
+	result.Hours = energy / power
 	energy %= power
-	result.Minutes = (60*energy) / power
-	energy = (60*energy) % power
-	result.Seconds = (60*energy) / power
+	result.Minutes = (60 * energy) / power
+	energy = (60 * energy) % power
+	result.Seconds = (60 * energy) / power
 
 	result.PercentRemaining = capacity
 
@@ -94,6 +95,49 @@ func (b *Battery) Monitor() {
 		b.Poll()
 		time.Sleep(time.Second)
 	}
+}
+
+func (b *Battery) NotifyDaemon() {
+	if !b.exists() {
+		return
+	}
+	oldstate := b.State
+	for {
+		state := b.State
+
+		// Check for low battery status
+		switch {
+		case state == nil:
+			// We don't have any data on the battery right now.
+		case state.Hours > 0 || state.Charging:
+			// Either the battery is not low, or or it's charging.
+			// No need to bother the user.
+		case state.Minutes < 5:
+			notifySend("critical", "Very low battery", state.String())
+		case state.Minutes < 20:
+			notifySend("normal", "Low battery", state.String())
+		}
+
+		// Check for AC adapter events.
+		switch {
+		case oldstate == nil || state == nil || oldstate.Charging == state.Charging:
+			// The AC adapter hasn't changed state since we last measured it.
+		case state.Charging:
+			notifySend("normal", "AC adapter connected", state.String())
+		case !state.Charging:
+			notifySend("normal", "AC adapter disconnected", state.String())
+		}
+
+		// Save the current state for later comparison.
+		oldstate = state
+
+		time.Sleep(time.Second)
+	}
+}
+
+func notifySend(urgency, summary, body string) {
+	cmd := exec.Command("notify-send", "-u", urgency, summary, body)
+	cmd.Run()
 }
 
 // This is a utility function which grabs the entire contents of a file by

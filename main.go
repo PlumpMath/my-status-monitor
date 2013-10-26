@@ -22,6 +22,7 @@ func main() {
 	myBattery := &battery.Battery{Path: "/sys/class/power_supply/BAT0/"}
 
 	go myBattery.Monitor()
+	go myBattery.NotifyDaemon()
 
 	for {
 		t := time.Now()
