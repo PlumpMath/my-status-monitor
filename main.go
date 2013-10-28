@@ -8,14 +8,10 @@ import (
 	"github.com/zenhack/my-status-monitor/battery"
 )
 
-const (
-)
-
 func emit(str string) {
 	cmd := exec.Command("xsetroot", "-name", str)
 	cmd.Run()
 }
-
 
 func main() {
 	timeFormat := "Mon Jan 2 3:04 PM"
