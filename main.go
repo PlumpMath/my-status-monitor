@@ -5,12 +5,20 @@ import (
 	"os/exec"
 	"time"
 
+	"strings"
+
 	"github.com/zenhack/my-status-monitor/battery"
 )
 
 func emit(str string) {
 	cmd := exec.Command("xsetroot", "-name", str)
 	cmd.Run()
+}
+
+func getWeather() (string, error) {
+	cmd := exec.Command("show-weather.sh")
+	out, err := cmd.Output()
+	return strings.TrimSpace(string(out)), err
 }
 
 func main() {
@@ -22,12 +30,16 @@ func main() {
 
 	for {
 		t := time.Now()
-		state := myBattery.State
-		if state != nil {
-			emit(fmt.Sprintf("%v | %s", state, t.Format(timeFormat)))
-		} else {
-			emit(t.Format(timeFormat))
+		batteryState := myBattery.State
+		weather, weatherErr := getWeather()
+		state := t.Format(timeFormat)
+		if batteryState != nil {
+			state = fmt.Sprintf("%v | %s", batteryState, state)
 		}
+		if weatherErr == nil {
+			state = fmt.Sprintf("%s | %s", weather, state)
+		}
+		emit(state)
 		time.Sleep(time.Second)
 	}
 }
