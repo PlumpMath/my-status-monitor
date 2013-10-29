@@ -101,6 +101,14 @@ func (b *Battery) NotifyDaemon() {
 	if !b.exists() {
 		return
 	}
+
+	// These variables record whether or not the battery has reached low
+	// or very low states since the last time it was unplugged. This lets
+	// us avoid getting multiple messages about those events, which
+	// happens because the estimated time remaining tends to fluctuate.
+	wasLow := false
+	wasVeryLow := false
+
 	oldstate := b.State
 	for {
 		state := b.State
@@ -112,10 +120,12 @@ func (b *Battery) NotifyDaemon() {
 		case state.Hours > 0 || state.Charging:
 			// Either the battery is not low, or or it's charging.
 			// No need to bother the user.
-		case state.Minutes < 5:
+		case state.Minutes < 5 && !wasVeryLow:
 			notifySend("critical", "Very low battery", state.String())
-		case state.Minutes < 20:
+			wasVeryLow = true
+		case state.Minutes < 20 && !wasLow:
 			notifySend("normal", "Low battery", state.String())
+			wasLow = true
 		}
 
 		// Check for AC adapter events.
@@ -124,6 +134,8 @@ func (b *Battery) NotifyDaemon() {
 			// The AC adapter hasn't changed state since we last measured it.
 		case state.Charging:
 			notifySend("normal", "AC adapter connected", state.String())
+			wasVeryLow = false
+			wasLow = false
 		case !state.Charging:
 			notifySend("normal", "AC adapter disconnected", state.String())
 		}
