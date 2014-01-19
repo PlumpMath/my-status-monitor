@@ -1,6 +1,7 @@
 package battery
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,11 @@ import (
 	"time"
 )
 
-type State struct {
+var (
+	deviceBusy = errors.New("battery updating; can't poll.")
+)
+
+type state struct {
 	// true iff the battery is being charged.
 	Charging bool
 	// The percentage of the battery's maximum energy remaining.
@@ -19,12 +24,20 @@ type State struct {
 	Hours, Minutes, Seconds int
 }
 
-type Battery struct {
+type battery struct {
 	Path  string
-	State *State
+	State *state
 }
 
-func (s *State) String() string {
+func Monitor(filename string) <-chan string {
+	ch := make(chan string, 1)
+	b := &battery{filename, nil}
+	go b.Monitor(ch)
+	go b.NotifyDaemon()
+	return ch
+}
+
+func (s *state) String() string {
 	if s.Charging {
 		return fmt.Sprintf("Battery charging, %d%%", s.PercentRemaining)
 	} else {
@@ -33,8 +46,7 @@ func (s *State) String() string {
 	}
 }
 
-func (b *Battery) Poll() {
-	var err error
+func (b *battery) Poll() (err error) {
 
 	// Read in each of the files we care about, and store their contents in a map.
 	text := make(map[string]string)
@@ -69,10 +81,10 @@ func (b *Battery) Poll() {
 		// device has been recently plugged in or unplugged, and
 		// hasn't settled down yet. Stop here; we want to wait until
 		// we can get an accurate reading.
-		return
+		return deviceBusy
 	}
 
-	result := &State{}
+	result := &state{}
 
 	// work out how much time we have left
 	result.Hours = energy / power
@@ -85,19 +97,22 @@ func (b *Battery) Poll() {
 
 	result.Charging = (text["status"][0] == 'C')
 	b.State = result
+	return nil
 }
 
-func (b *Battery) Monitor() {
+func (b *battery) Monitor(ch chan<- string) {
 	if !b.exists() {
 		return
 	}
 	for {
-		b.Poll()
+		if b.Poll() == nil {
+			ch <-b.State.String()
+		}
 		time.Sleep(time.Second)
 	}
 }
 
-func (b *Battery) NotifyDaemon() {
+func (b *battery) NotifyDaemon() {
 	if !b.exists() {
 		return
 	}
@@ -164,7 +179,7 @@ func slurpFile(filename string) (string, error) {
 	return string(data), err
 }
 
-func (b *Battery) exists() bool {
+func (b *battery) exists() bool {
 	_, err := os.Stat(b.Path)
 	return err == nil
 }

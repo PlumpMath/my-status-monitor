@@ -5,41 +5,37 @@ import (
 	"os/exec"
 	"time"
 
-	"strings"
-
 	"github.com/zenhack/my-status-monitor/battery"
+	"github.com/zenhack/my-status-monitor/weather"
 )
 
-func emit(str string) {
+func setStatus(str string) {
 	cmd := exec.Command("xsetroot", "-name", str)
 	cmd.Run()
 }
 
-func getWeather() (string, error) {
-	cmd := exec.Command("show-weather.sh")
-	out, err := cmd.Output()
-	return strings.TrimSpace(string(out)), err
-}
-
 func main() {
+	weatherChannel := weather.Monitor() // har har.
+	batteryChannel := battery.Monitor("/sys/class/power_supply/BAT0/")
+	ticker := time.NewTicker(time.Minute)
 	timeFormat := "Mon Jan 2 3:04 PM"
-	myBattery := &battery.Battery{Path: "/sys/class/power_supply/BAT0/"}
 
-	go myBattery.Monitor()
-	go myBattery.NotifyDaemon()
-
+	w, b := "", ""
+	t := time.Now()
+	tstring := t.Format(timeFormat)
 	for {
-		t := time.Now()
-		batteryState := myBattery.State
-		weather, weatherErr := getWeather()
-		state := t.Format(timeFormat)
-		if batteryState != nil {
-			state = fmt.Sprintf("%v | %s", batteryState, state)
+		select {
+		case w = <-weatherChannel:
+		case b = <-batteryChannel:
+		case t = <-ticker.C:
+			tstring = t.Format(timeFormat)
 		}
-		if weatherErr == nil {
-			state = fmt.Sprintf("%s | %s", weather, state)
+
+
+		if b == "" {
+			setStatus(fmt.Sprintf("%s | %s", w, tstring))
+		} else {
+			setStatus(fmt.Sprintf("%s | %s | %s", w, b, tstring))
 		}
-		emit(state)
-		time.Sleep(time.Second)
 	}
 }
