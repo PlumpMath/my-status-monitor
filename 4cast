@@ -1,0 +1,25 @@
+#!/bin/sh
+
+cat $HOME/.cache/weather | xml2 | awk -F= '
+
+/yweather:units\/@temperature/ { tempunit = $2 }
+
+/yweather:forecast\/@day/  { day  = $2 }
+/yweather:forecast\/@date/ { date = $2 }
+/yweather:forecast\/@low/  { low  = $2 }
+/yweather:forecast\/@high/ { high = $2 }
+/yweather:forecast\/@text/ { text = $2 }
+
+/yweather:forecast\/@code/ {
+	# The code is the last attribute in the input; We do not
+	# currently use directly, but it signals the end of the element.
+
+	print ""
+	print day " " date ":"
+	print text
+	printf "    low  :  %3d %s\n", low,  tempunit
+	printf "    high :  %3d %s\n", high, tempunit
+}
+
+'
+
