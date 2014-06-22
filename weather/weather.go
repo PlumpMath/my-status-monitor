@@ -1,10 +1,6 @@
 package weather
 
 import (
-	"errors"
-	"io"
-	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -12,32 +8,8 @@ import (
 	"fmt"
 )
 
-var (
-	httpNotOK = errors.New("HTTP response was not 200 OK")
-)
-
-const (
-	WOEID_BOSTON = "2367105"
-
-	YWeatherEndpoint = "https://weather.yahooapis.com/forecastrss?w="
-)
-
 func fetch() error {
-	resp, err := http.Get(YWeatherEndpoint + WOEID_BOSTON)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return httpNotOK
-	}
-	defer resp.Body.Close()
-	file, err := os.Create(os.Getenv("HOME") + "/.cache/weather")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = io.Copy(file, resp.Body)
-	return err
+	return exec.Command("get-weather.sh").Run()
 }
 
 func show() string {
