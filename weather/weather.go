@@ -32,8 +32,8 @@ func monitor(ch chan<- string) {
 		for err != nil {
 			fmt.Println(err)
 			backoff *= 2
-			if backoff > time.Minute / 2 {
-				backoff = time.Minute / 2
+			if backoff > time.Minute / 4 {
+				backoff = time.Minute / 4
 			}
 			fmt.Println("backoff = ", backoff)
 			time.Sleep(backoff)
