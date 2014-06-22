@@ -4,8 +4,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"fmt"
 )
 
 func fetch() error {
@@ -30,12 +28,10 @@ func monitor(ch chan<- string) {
 		backoff := time.Second
 		err := fetch()
 		for err != nil {
-			fmt.Println(err)
 			backoff *= 2
 			if backoff > time.Minute / 4 {
 				backoff = time.Minute / 4
 			}
-			fmt.Println("backoff = ", backoff)
 			time.Sleep(backoff)
 			err = fetch()
 		}
