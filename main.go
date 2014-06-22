@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/zenhack/my-status-monitor/battery"
@@ -31,11 +31,6 @@ func main() {
 			tstring = t.Format(timeFormat)
 		}
 
-
-		if b == "" {
-			setStatus(fmt.Sprintf("%s | %s", w, tstring))
-		} else {
-			setStatus(fmt.Sprintf("%s | %s | %s", w, b, tstring))
-		}
+		setStatus(strings.Join([]string{w, b, tstring}, " | "))
 	}
 }
