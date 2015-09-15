@@ -24,13 +24,13 @@ func main() {
 	t := time.Now()
 	tstring := t.Format(timeFormat)
 	for {
+		setStatus(strings.Join([]string{w, b, tstring}, " | "))
+
 		select {
 		case w = <-weatherChannel:
 		case b = <-batteryChannel:
 		case t = <-ticker.C:
 			tstring = t.Format(timeFormat)
 		}
-
-		setStatus(strings.Join([]string{w, b, tstring}, " | "))
 	}
 }
