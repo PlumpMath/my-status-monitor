@@ -112,10 +112,6 @@ func (b *battery) Monitor(ch chan<- string) {
 }
 
 func (b *battery) NotifyDaemon() {
-	if !b.exists() {
-		return
-	}
-
 	// These variables record whether or not the battery has reached low
 	// or very low states since the last time it was unplugged. This lets
 	// us avoid getting multiple messages about those events, which
