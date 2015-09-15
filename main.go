@@ -14,6 +14,17 @@ func setStatus(str string) {
 	cmd.Run()
 }
 
+// Like strings.Join(strs, " | "), but filters out empty strings in strs first.
+func join(strs ...string) string {
+	resultSlice := make([]string, 0, len(strs))
+	for i := range(strs) {
+		if strs[i] != "" {
+			resultSlice = append(resultSlice, strs[i])
+		}
+	}
+	return strings.Join(resultSlice, " | ")
+}
+
 func main() {
 	weatherChannel := weather.Monitor() // har har.
 	batteryChannel := battery.Monitor("/sys/class/power_supply/BAT0/")
@@ -24,7 +35,7 @@ func main() {
 	t := time.Now()
 	tstring := t.Format(timeFormat)
 	for {
-		setStatus(strings.Join([]string{w, b, tstring}, " | "))
+		setStatus(join(w, b, tstring))
 
 		select {
 		case w = <-weatherChannel:
