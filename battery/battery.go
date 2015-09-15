@@ -32,8 +32,10 @@ type battery struct {
 func Monitor(filename string) <-chan string {
 	ch := make(chan string, 1)
 	b := &battery{filename, nil}
-	go b.Monitor(ch)
-	go b.NotifyDaemon()
+	if b.exists() {
+		go b.Monitor(ch)
+		go b.NotifyDaemon()
+	}
 	return ch
 }
 
@@ -101,9 +103,6 @@ func (b *battery) Poll() (err error) {
 }
 
 func (b *battery) Monitor(ch chan<- string) {
-	if !b.exists() {
-		return
-	}
 	for {
 		if b.Poll() == nil {
 			ch <-b.State.String()
