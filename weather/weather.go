@@ -39,7 +39,7 @@ func monitor(ch chan<- string) {
 		info, err := fetch()
 		for err != nil {
 			backoff *= 2
-			if backoff > time.Minute / 4 {
+			if backoff > time.Minute/4 {
 				backoff = time.Minute / 4
 			}
 			time.Sleep(backoff)
