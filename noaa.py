@@ -91,7 +91,9 @@ def entry_for_time(time_map, time):
 
     Return none if no such range exists.
     """
-    result = None
+    if len(time_map) == 0:
+        return None
+    result = time_map[0][1]
     for ((start, end), value) in time_map:
         if start <= time and (end is None or end > time):
             result = value
@@ -104,16 +106,45 @@ def get_hourly_temps(tree):
     return [(k, float(v.text)) for k, v in time_map]
 
 
+def get_hourly_conditions(tree):
+    """Return a mapping from a time layout to conditions."""
+    time_map = time_map_for(tree, './/weather', './weather-conditions')
+    time_map = [(k, v.find('./value')) for (k, v) in time_map]
+
+    last = None
+    for i in range(len(time_map)):
+        k, v = time_map[i]
+        if v is None:
+            v = last
+        else:
+            last = v
+        time_map[i] = (k, v)
+
+    for i in range(len(time_map)):
+        k, v = time_map[i]
+        v = dict([(attr, v.attrib[attr])
+                  for attr in ('coverage',
+                               'intensity',
+                               'weather-type')])
+        time_map[i] = (k, v)
+    return time_map
+
+
 if __name__ == '__main__':
     root = fetch_data()
     build_time_layouts(root)
 
     now = arrow.now()
     temps = get_hourly_temps(root)
+    conditions = get_hourly_conditions(root)
 
     current_temp = entry_for_time(temps, now)
 
     if current_temp is None:
         sys.exit('No reading for right now')
 
-    print(json.dumps({"current_temp": current_temp, "units": "F"}))
+    print(json.dumps({
+        "temp": current_temp,
+        "units": "F",
+        "conditions": entry_for_time(conditions, now),
+    }))

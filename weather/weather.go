@@ -7,13 +7,29 @@ import (
 	"time"
 )
 
+type WeatherConditionsInfo struct {
+	WeatherType string `json:"weather-type"`
+	Coverage    string `json:"coverage"`
+	Intensity   string `json:"intensity"`
+}
+
 type WeatherInfo struct {
-	CurrentTemp float64 `json:"current_temp"`
-	Units       string  `json:"units"`
+	Temp       float64                `json:"temp"`
+	Units      string                 `json:"units"`
+	Conditions *WeatherConditionsInfo `json:"conditions"`
 }
 
 func (i *WeatherInfo) Show() string {
-	return fmt.Sprintf("%v %s", i.CurrentTemp, i.Units)
+	var Conditions string
+	if i.Conditions != nil {
+		Conditions = fmt.Sprintf(
+			", %s %s %s",
+			i.Conditions.Coverage,
+			i.Conditions.Intensity,
+			i.Conditions.WeatherType,
+		)
+	}
+	return fmt.Sprintf("%v %s%s", i.Temp, i.Units, Conditions)
 }
 
 func fetch() (*WeatherInfo, error) {
