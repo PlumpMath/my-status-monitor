@@ -17,7 +17,7 @@ from defusedxml import ElementTree as ET
 ENDPOINT = 'http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdXMLclient.php'
 ZIPCODE = '02215'
 
-layouts = None
+layouts = {}
 
 
 class LengthMismatch(Exception):
@@ -46,7 +46,6 @@ def build_time_layouts(tree):
     of (start-valid-time, end-valid-time) pairs, each time being of type
     arrow, with end times possibly None.
     """
-    layouts = {}
     for tl in tree.findall('.//time-layout'):
         # Find the layout key:
         key = tl.find('layout-key')
@@ -62,7 +61,6 @@ def build_time_layouts(tree):
             ends = [None for s in starts]
 
         layouts[key] = zip(starts, ends)
-    return layouts
 
 
 def time_map_for(tree, parent_query, child_query):
@@ -108,7 +106,7 @@ def get_hourly_temps(tree):
 
 if __name__ == '__main__':
     root = fetch_data()
-    layouts = build_time_layouts(root)
+    build_time_layouts(root)
 
     now = arrow.now()
     temps = get_hourly_temps(root)
