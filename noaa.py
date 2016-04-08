@@ -15,13 +15,28 @@ import sys
 from defusedxml import ElementTree as ET
 
 ENDPOINT = 'http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdXMLclient.php'
+ZIPCODE = '02215'
 
-ret = requests.get(ENDPOINT, params={
-    'zipCodeList': '02215',
-    'unit': 'e',  # Standard/English; 'm' denotes metric.
-})
+layouts = None
 
-root = ET.fromstring(ret.text)
+
+class LengthMismatch(Exception):
+
+    def __init__(self, l, r):
+        Exception.__init__(self, 'Length mismatch: len(%r) != len(%r)' %
+                           (l, r))
+
+
+def fetch_data():
+    """Fetch the data from NOAA.
+
+    Returns an element tree of the parsed xml.
+    """
+    resp = requests.get(ENDPOINT, params={
+        'zipCodeList': ZIPCODE,
+        'unit': 'e',  # Standard/English; 'm' denotes metric.
+    })
+    return ET.fromstring(resp.text)
 
 
 def build_time_layouts(tree):
@@ -49,29 +64,58 @@ def build_time_layouts(tree):
         layouts[key] = zip(starts, ends)
     return layouts
 
-layouts = build_time_layouts(root)
+
+def time_map_for(tree, parent_query, child_query):
+    """Return a list of pairs mapping times to elements.
+
+    - `tree` should be the root of the element tree.
+    - `parent_query` must be an xpath query, which when executed on `tree`
+       will select an element with a 'time-layout' attribute.
+    - `child_query` must be an xpath query, which when executed on the parent
+      will select one element for each entry in the time layout.
+
+    The times will be taken from the 'time-layout' parameter of the parent
+    element, and the values will be the child elements.
+    """
+    parent = tree.find(parent_query)
+    time_layout = layouts[parent.attrib['time-layout']]
+    children = parent.findall(child_query)
+    if len(time_layout) != len(children):
+        raise LengthMismatch(time_layout, children)
+    return zip(time_layout, children)
 
 
-def get_temps(tree):
-    elt = tree.find(".//temperature[@type='hourly']")
-    temps = [float(e.text) for e in elt.findall('./value')]
-    time_layout = [start for (start, end) in
-                   layouts[elt.attrib['time-layout']]]
-    if len(time_layout) != len(temps):
-        print("length mismatch!")
-    return zip(time_layout, temps)
+def entry_for_time(time_map, time):
+    """Return the first entry in `time_map` whose time range contains `time`.
 
-temps = get_temps(root)
+    `time_map` should be a value returend by `time_map_for`. `time` should be
+    an arrow.
 
-now = arrow.now()
-current_temp = None
+    Return none if no such range exists.
+    """
+    result = None
+    for ((start, end), value) in time_map:
+        if start <= time and (end is None or end > time):
+            result = value
+    return result
 
-for (time, temp) in temps:
-    if time > now:
-        break
-    current_temp = temp
 
-if current_temp is None:
-    sys.exit('No reading for right now')
+def get_hourly_temps(tree):
+    """Return a mapping from an hourly time layout to temperatures."""
+    time_map = time_map_for(tree, ".//temperature[@type='hourly']", './value')
+    return [(k, float(v.text)) for k, v in time_map]
 
-print(json.dumps({"current_temp": current_temp, "units": "F"}))
+
+if __name__ == '__main__':
+    root = fetch_data()
+    layouts = build_time_layouts(root)
+
+    now = arrow.now()
+    temps = get_hourly_temps(root)
+
+    current_temp = entry_for_time(temps, now)
+
+    if current_temp is None:
+        sys.exit('No reading for right now')
+
+    print(json.dumps({"current_temp": current_temp, "units": "F"}))
