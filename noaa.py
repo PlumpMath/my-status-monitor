@@ -122,10 +122,11 @@ def get_hourly_conditions(tree):
 
     for i in range(len(time_map)):
         k, v = time_map[i]
-        v = dict([(attr, v.attrib[attr])
-                  for attr in ('coverage',
-                               'intensity',
-                               'weather-type')])
+        if v is not None:
+            v = dict([(attr, v.attrib[attr])
+                    for attr in ('coverage',
+                                'intensity',
+                                'weather-type')])
         time_map[i] = (k, v)
     return time_map
 
